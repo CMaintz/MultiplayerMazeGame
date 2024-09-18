@@ -137,6 +137,7 @@ public class GUI extends Application {
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
+
 	}
 
 	public void playerMoved(int delta_x, int delta_y, String direction) {
