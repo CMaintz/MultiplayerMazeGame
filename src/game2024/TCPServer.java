@@ -16,14 +16,10 @@ public class TCPServer {
         while (true) {
             Socket connectionSocket = welcomeSocket.accept();
 
-            ReplyThread replyThread = new ReplyThread(connectionSocket);
-            RequestThread requestThread = new RequestThread(connectionSocket);
-
-            replyThread.start();
-            requestThread.start();
+            ServerThread serverThread = new ServerThread(connectionSocket);
+            serverThread.start();
 
             System.out.println("Ny klient forbundet.");
-
         }
 
     }
