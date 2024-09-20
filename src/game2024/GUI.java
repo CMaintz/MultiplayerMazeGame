@@ -1,6 +1,7 @@
 package game2024;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -81,7 +82,7 @@ public class GUI extends Application {
             inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
             String mitNavn = "Christoffer";
-            outToServer.writeBytes("CONNECT " + mitNavn + "\n");
+            outToServer.writeBytes("REGISTER " + mitNavn + "\n");
 
 
             GridPane grid = new GridPane();
@@ -138,6 +139,35 @@ public class GUI extends Application {
             primaryStage.setScene(scene);
             primaryStage.show();
 
+
+            // Setting up standard players
+
+            Player christoffer = new Player("Christoffer", 9, 4, "up");
+            players.add(christoffer);
+            fields[9][4].setGraphic(new ImageView(hero_up));
+
+            Player kenneth = new Player("Kenneth", 14, 15, "up");
+            players.add(kenneth);
+            fields[14][15].setGraphic(new ImageView(hero_up));
+
+            Player christian = new Player("Christian", 8, 13, "up");
+            players.add(christian);
+            fields[8][13].setGraphic(new ImageView(hero_up));
+            //6 til venstre for harry, 2 op.
+
+            Player david = new Player("David", 4, 9, "up");
+            players.add(david);
+            fields[4][9].setGraphic(new ImageView(hero_up));
+            //10 v, 6 op
+
+            for (Player player : players) {
+                if (player.name.equalsIgnoreCase(mitNavn)) {
+                    me = player;
+                }
+            }
+
+//            TODO lav en metode der opretter en player baseret på det navn der bliver modtaget når nogen forbinder, og så indsæt dem på en af mange placeringer
+
             scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 try {
                     String input = "";
@@ -171,41 +201,20 @@ public class GUI extends Application {
                         default:
                             break;
                     }
-                    String[] tokens = input.split(" ");
-                    String sentence = "MOVE " + me.name + " " + input + "\n";
-
-                    outToServer.writeBytes(sentence);
+//                    String[] tokens = input.split(" ");
+                    sendMoveCommand(input);
+//                    String sentence = "MOVE " + me.name + " " + input + "\n";
+//
+//                    outToServer.writeBytes(sentence);
 
 //                    sentence += tokens[2] + "\n";
 
 //                    System.out.println(inFromServer.readLine());
-                    playerMoved(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2], me);
+//                    playerMoved(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2], me);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
-
-            // Setting up standard players
-
-            Player orville = new Player("Orville", 9, 4, "up");
-            players.add(orville);
-            fields[9][4].setGraphic(new ImageView(hero_up));
-
-            Player harry = new Player("Harry", 14, 15, "up");
-            players.add(harry);
-            fields[14][15].setGraphic(new ImageView(hero_up));
-
-            Player peter = new Player("Peter", 8, 13, "up");
-            players.add(peter);
-            fields[8][13].setGraphic(new ImageView(hero_up));
-            //6 til venstre for harry, 2 op.
-
-            Player bob = new Player("Bob", 4, 9, "up");
-            players.add(bob);
-            fields[4][9].setGraphic(new ImageView(hero_up));
-            //10 v, 6 op
-
-//            TODO lav en metode der opretter en player baseret på det navn der bliver modtaget når nogen forbinder, og så indsæt dem på en af mange placeringer
 
             scoreList.setText(getScoreList());
 
@@ -220,8 +229,8 @@ public class GUI extends Application {
 
 
     //	new method by yours truly TODO
-    public void sendMoveCommand(String direction) throws IOException {
-        outToServer.writeBytes("MOVE " + direction.toUpperCase() + "\n");
+    public void sendMoveCommand(String input) throws IOException {
+        outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
     }
 
     //	new method by yours truly TODO
@@ -246,7 +255,6 @@ public class GUI extends Application {
     }
 
     public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
-        //TODO: parameter player, som skal flyttes.
         player.direction = direction;
 //        me.direction = direction;
 //        int x = me.getXpos(), y = me.getYpos();
@@ -309,10 +317,20 @@ public class GUI extends Application {
         return null;
     }
 
-//    private
+    private Player createPlayer(String name, int xpos, int ypos, String direction) {
+//getplayerat == null?
+        Player player = new Player(name, xpos, ypos, direction);
+        players.add(player);
+        fields[xpos][ypos].setGraphic(new ImageView(hero_up));
+        return player;
+        //            TODO: spawn points:
+//            1, 1
+//            1, 8
+//            17, 18
+//            17, 1
+    }
 
     private class GuiThread extends Thread {
-        //TODO skal læse.
         private GuiThread() {
         }
 
@@ -325,7 +343,33 @@ public class GUI extends Application {
                 while ((inboundMessage = inFromServer.readLine()) != null) {
                     System.out.println(inboundMessage);
 
-//                    if CONNECT så laver man noget connection shit med nye players, tilføjer dem til sit board?
+                    String[] tokens = inboundMessage.split(" ");
+                    String command = tokens[0];
+                    String name = tokens[1];
+
+                    if (command.equalsIgnoreCase("MOVE")) {
+                        int delta_x = Integer.parseInt(tokens[2]);
+                        int delta_y = Integer.parseInt(tokens[3]);
+                        String direction = tokens[4];
+
+//                        TODO: lav "players" om til et hashmap, så der er en key (navnet) og en værdi (player),
+//                         så man ikke behøver lave ze loop
+                        for (Player p : players) {
+                            if (p.getName().equalsIgnoreCase(name)) {
+                                Platform.runLater( () -> {
+                                    playerMoved(delta_x, delta_y, direction, p);
+                                });
+//                                2, 3, 4, p
+                            }
+                        }
+                    }
+                    else if (tokens[0].equalsIgnoreCase("REGISTER")) {
+//                        createPlayer()
+                        System.out.println(inboundMessage);
+//                        TODO: kald opretSpiller. Dernæst, send beskeden ud til serveren, med hvem der ellers er af spillere,
+//                         dvs. deres navn, X & Y koordinater plus hvilken vej de vender.
+                    }
+//                    if REGISTER så laver man noget connection shit med nye players, tilføjer dem til sit board?
 //                    Hvis MOVE så flyttes den spiller der er i MOVE beskeden til (eller fra?) plads x, y,
 //                    og vender den vej der siges i beskeden.
 //                    if... Permission? IDK.

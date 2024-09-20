@@ -14,42 +14,40 @@ public class ServerThread extends Thread {
 
     public ServerThread(Socket connSocket, BufferedReader inFromClient) throws IOException {
         this.connSocket = connSocket;
-//        this.inFromClient = inFromClient;
-        this.inFromClient = new BufferedReader(new InputStreamReader(connSocket.getInputStream()));
+        this.inFromClient = inFromClient;
+//        this.inFromClient = new BufferedReader(new InputStreamReader(connSocket.getInputStream()));
         outToClient = new DataOutputStream(connSocket.getOutputStream());
     }
 
     @Override
     public void run() {
         try {
-
-
             // Do the work and the communication with the client here
-//            String playerName = inFromClient.readLine();
-//            player = new Player(playerName, 9, 4, "up");
-//            players.add(player);
-
-//            updateClientWithPlayerInfo();
 
             String command;
-//            while ((command = inFromClient.readLine() != null)) {
-//                processCommand(command);
-//                broadcastGameState();
-//            }
 
             while ((command = inFromClient.readLine()) != null) {
 //                outToClient.writeBytes(command + "\n");
+//                Skal man efter broadcast have en read eller sådan noget, så man venter på et svar, før man kan indføre bevægelsen?
                 Server.broadcast(command);
+//                TODO: Man kan selvfølgelig også implementere så der kun laves
+//                 en bevægelse når der kommer en returbesked ud, dvs.
+//                 playerMoved kaldes ikke når man trykker på piltasterne, men når man
+//                 får en besked ind; man får selv beskeden når man kommer gennem sync køen
+
+                System.out.println(command);
             }
-//            Der skal nok laves en randomize position dimsedut eller sådan noget, men indtil videre er det lige sådan her vi gør.
-//            Og så skal man vel have en liste over gyldige og ubrugte placeringer. Evt. kan man bare tage placering[0], 1, 2, 3, 4 osv
+            System.out.println("ded thread (left while)");
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("deder thread (left try-catch)");
         // do the work here
+//        TODO: kald en metode (som skal laves i Server) som fjerner en tråd fra thread-listen når den ryger herud og er ved at lukke.
+        System.out.println(Server.removeThread(this) + " kiiiya!");
     }
 
-    //    by Maintz, TODO: Kill this? idk
+    //    by Maintz
     public void listenForChanges(String command) {
         try {
             outToClient.writeBytes(command + "\n");
