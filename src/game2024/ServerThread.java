@@ -12,16 +12,17 @@ public class ServerThread extends Thread {
     BufferedReader inFromClient;
 
 
-    public ServerThread(Socket connSocket, BufferedReader inFromClient) {
+    public ServerThread(Socket connSocket, BufferedReader inFromClient) throws IOException {
         this.connSocket = connSocket;
-        this.inFromClient = inFromClient;
+//        this.inFromClient = inFromClient;
+        this.inFromClient = new BufferedReader(new InputStreamReader(connSocket.getInputStream()));
+        outToClient = new DataOutputStream(connSocket.getOutputStream());
     }
 
     @Override
     public void run() {
         try {
-            BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connSocket.getInputStream()));
-            outToClient = new DataOutputStream(connSocket.getOutputStream());
+
 
             // Do the work and the communication with the client here
 //            String playerName = inFromClient.readLine();
@@ -37,7 +38,8 @@ public class ServerThread extends Thread {
 //            }
 
             while ((command = inFromClient.readLine()) != null) {
-                outToClient.writeBytes(command);
+//                outToClient.writeBytes(command + "\n");
+                Server.broadcast(command);
             }
 //            Der skal nok laves en randomize position dimsedut eller sådan noget, men indtil videre er det lige sådan her vi gør.
 //            Og så skal man vel have en liste over gyldige og ubrugte placeringer. Evt. kan man bare tage placering[0], 1, 2, 3, 4 osv

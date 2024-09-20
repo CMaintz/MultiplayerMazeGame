@@ -33,12 +33,14 @@ private static List<ServerThread> threads = new ArrayList<>();
 
 //            loop gennem alle tråde, send dem en besked?
 
-            broadcast(connectionInfo);
 
-            ServerThread serverThread = new ServerThread(connectionSocket, inFromClient);
+//            ServerThread serverThread = new ServerThread(connectionSocket, inFromClient);
+            ServerThread serverThread = new ServerThread(connectionSocket, null);
             serverThread.start();
             threads.add(serverThread);
 
+            broadcast(connectionInfo);
+//            broadcast("hej hej");
 
 
             System.out.println("Ny klient forbundet.");
@@ -51,7 +53,7 @@ private static List<ServerThread> threads = new ArrayList<>();
     }
 
 //    by yours truly.
-    private static void broadcast(String command) throws IOException {
+    public static void broadcast(String command) throws IOException {
         for (ServerThread st : threads) {
             st.listenForChanges(command);
         }
