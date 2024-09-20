@@ -80,6 +80,8 @@ public class GUI extends Application {
             outToServer = new DataOutputStream(clientSocket.getOutputStream());
             inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
+            outToServer.writeBytes("CONNECT Peter\n");
+
             GridPane grid = new GridPane();
             grid.setHgap(10);
             grid.setVgap(10);
@@ -171,6 +173,7 @@ public class GUI extends Application {
                     String sentence = "MOVE " + me.getXpos() + " " + me.getYpos() + " " + tokens[2] + "\n";
 
                     outToServer.writeBytes(sentence);
+
 //                    sentence += tokens[2] + "\n";
 
 //                    System.out.println(inFromServer.readLine());
@@ -317,6 +320,7 @@ public class GUI extends Application {
             try {
                 while ((inboundMessage = inFromServer.readLine()) != null) {
                     System.out.println(inboundMessage);
+
 //                    if CONNECT så laver man noget connection shit med nye players, tilføjer dem til sit board?
 //                    Hvis MOVE så flyttes den spiller der er i MOVE beskeden til (eller fra?) plads x, y,
 //                    og vender den vej der siges i beskeden.
