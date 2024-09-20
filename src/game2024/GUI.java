@@ -238,20 +238,23 @@ public class GUI extends Application {
         }
     }
 
-    public void playerMoved(int delta_x, int delta_y, String direction) {
+    public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
         //TODO: parameter player, som skal flyttes.
-        me.direction = direction;
-        int x = me.getXpos(), y = me.getYpos();
+        player.direction = direction;
+//        me.direction = direction;
+//        int x = me.getXpos(), y = me.getYpos();
+        int x = player.getXpos(), y = player.getYpos();
+//player
 
         if (board[y + delta_y].charAt(x + delta_x) == 'w') {
-            me.addPoints(-1);
+            player.addPoints(-1);
         } else {
             Player p = getPlayerAt(x + delta_x, y + delta_y);
             if (p != null) {
-                me.addPoints(10);
+                player.addPoints(10);
                 p.addPoints(-10);
             } else {
-                me.addPoints(1);
+                player.addPoints(1);
 
                 fields[x][y].setGraphic(new ImageView(image_floor));
                 x += delta_x;
@@ -274,8 +277,8 @@ public class GUI extends Application {
                 }
                 ;
 
-                me.setXpos(x);
-                me.setYpos(y);
+                player.setXpos(x);
+                player.setYpos(y);
             }
         }
         scoreList.setText(getScoreList());
@@ -298,6 +301,8 @@ public class GUI extends Application {
         }
         return null;
     }
+
+//    private
 
     private class GuiThread extends Thread {
         //TODO skal læse.
