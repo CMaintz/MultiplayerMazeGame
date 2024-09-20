@@ -80,7 +80,9 @@ public class GUI extends Application {
             outToServer = new DataOutputStream(clientSocket.getOutputStream());
             inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-            outToServer.writeBytes("CONNECT Peter\n");
+            String mitNavn = "Christoffer";
+            outToServer.writeBytes("CONNECT " + mitNavn + "\n");
+
 
             GridPane grid = new GridPane();
             grid.setHgap(10);
@@ -144,33 +146,33 @@ public class GUI extends Application {
                         case UP:
 //                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " up\n");
 //                            System.out.println(inFromServer.readLine());
-                            input = " 0 -1 up";
+                            input = "0 -1 up";
 //                            TODO at læse fra serveren skal gøres i en tråd, læse fra en tråd i en anden tråd
 //                            playerMoved(0, -1, "up");
                             break;
                         case DOWN:
 //                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " down\n");
 //                            System.out.println(inFromServer.readLine());
-                            input = " 0 +1 down";
+                            input = "0 +1 down";
 //                            playerMoved(0, +1, "down");
                             break;
                         case LEFT:
 //                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " left\n");
 //                            System.out.println(inFromServer.readLine());
-                            input = " -1 0 left";
+                            input = "-1 0 left";
 //                            playerMoved(-1, 0, "left");
                             break;
                         case RIGHT:
 //                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " right\n");
 //                            System.out.println(inFromServer.readLine());
-                            input = " +1 0 right";
+                            input = "+1 0 right";
 //                            playerMoved(+1, 0, "right");
                             break;
                         default:
                             break;
                     }
                     String[] tokens = input.split(" ");
-                    String sentence = "MOVE " + me.name + input + "\n";
+                    String sentence = "MOVE " + me.name + " " + input + "\n";
 
                     outToServer.writeBytes(sentence);
 
@@ -185,8 +187,8 @@ public class GUI extends Application {
 
             // Setting up standard players
 
-            me = new Player("Orville", 9, 4, "up");
-            players.add(me);
+            Player orville = new Player("Orville", 9, 4, "up");
+            players.add(orville);
             fields[9][4].setGraphic(new ImageView(hero_up));
 
             Player harry = new Player("Harry", 14, 15, "up");
@@ -202,6 +204,8 @@ public class GUI extends Application {
             players.add(bob);
             fields[4][9].setGraphic(new ImageView(hero_up));
             //10 v, 6 op
+
+//            TODO lav en metode der opretter en player baseret på det navn der bliver modtaget når nogen forbinder, og så indsæt dem på en af mange placeringer
 
             scoreList.setText(getScoreList());
 

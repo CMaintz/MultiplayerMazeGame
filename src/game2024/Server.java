@@ -25,7 +25,7 @@ private static List<ServerThread> threads = new ArrayList<>();
 
         while (true) {
             Socket connectionSocket = welcomeSocket.accept();
-            sockets.add(connectionSocket);
+//            sockets.add(connectionSocket);
 
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
 
@@ -39,6 +39,7 @@ private static List<ServerThread> threads = new ArrayList<>();
             serverThread.start();
             threads.add(serverThread);
 
+            System.out.println(connectionInfo);
             broadcast(connectionInfo);
 //            broadcast("hej hej");
 
