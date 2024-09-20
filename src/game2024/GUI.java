@@ -174,7 +174,7 @@ public class GUI extends Application {
 //                    sentence += tokens[2] + "\n";
 
 //                    System.out.println(inFromServer.readLine());
-                    playerMoved(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2]);
+                    playerMoved(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2], me);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
