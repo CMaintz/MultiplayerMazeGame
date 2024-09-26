@@ -6,6 +6,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
@@ -20,11 +21,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GUI extends Application {
-
     private static Socket clientSocket;
     private static BufferedReader inFromServer;
     private static DataOutputStream outToServer;
@@ -37,8 +37,12 @@ public class GUI extends Application {
     public static Image image_wall;
     public static Image hero_right, hero_left, hero_up, hero_down;
 
+    private static String myName = "";
     public static Player me;
-    public static List<Player> players = new ArrayList<Player>();
+    public static Map<String, Player> playerMap = new HashMap<>();
+    private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17"};
+
+    private int connectedClients = 0;
 
     private Label[][] fields;
     private TextArea scoreList;
@@ -77,13 +81,20 @@ public class GUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
+//          Opret en TextInputDialog for at få spillerens navn
+//          I stedet for at skulle hardcode lortet
+            TextInputDialog nameDialog = new TextInputDialog();
+            nameDialog.setTitle("Indtast dit navn");
+            nameDialog.setHeaderText("Velkommen til spillet!");
+            nameDialog.setContentText("Indtast dit navn:");
+
+//          Venter på brugerens input med showAndWait()
+            nameDialog.showAndWait();
+            myName = nameDialog.getResult();
+
             clientSocket = new Socket("localhost", 6789);
             outToServer = new DataOutputStream(clientSocket.getOutputStream());
             inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-            String mitNavn = "Christoffer";
-            outToServer.writeBytes("REGISTER " + mitNavn + "\n");
-
 
             GridPane grid = new GridPane();
             grid.setHgap(10);
@@ -139,88 +150,56 @@ public class GUI extends Application {
             primaryStage.setScene(scene);
             primaryStage.show();
 
-
             // Setting up standard players
 
-            Player christoffer = new Player("Christoffer", 9, 4, "up");
-            players.add(christoffer);
-            fields[9][4].setGraphic(new ImageView(hero_up));
-
-            Player kenneth = new Player("Kenneth", 14, 15, "up");
-            players.add(kenneth);
-            fields[14][15].setGraphic(new ImageView(hero_up));
-
-            Player christian = new Player("Christian", 8, 13, "up");
-            players.add(christian);
-            fields[8][13].setGraphic(new ImageView(hero_up));
-            //6 til venstre for harry, 2 op.
-
-            Player david = new Player("David", 4, 9, "up");
-            players.add(david);
-            fields[4][9].setGraphic(new ImageView(hero_up));
-            //10 v, 6 op
-
-            for (Player player : players) {
-                if (player.name.equalsIgnoreCase(mitNavn)) {
-                    me = player;
-                }
-            }
-
-//            TODO lav en metode der opretter en player baseret på det navn der bliver modtaget når nogen forbinder, og så indsæt dem på en af mange placeringer
+//            Player christoffer = new Player("Christoffer", 9, 4, "up");
+//            players.add(christoffer);
+//            fields[9][4].setGraphic(new ImageView(hero_up));
+//
+//            Player kenneth = new Player("Kenneth", 14, 15, "up");
+//            players.add(kenneth);
+//            fields[14][15].setGraphic(new ImageView(hero_up));
+//
+//            Player christian = new Player("Christian", 8, 13, "up");
+//            players.add(christian);
+//            fields[8][13].setGraphic(new ImageView(hero_up));
+//            //6 til venstre for harry, 2 op.
+//
+//            Player david = new Player("David", 4, 9, "up");
+//            players.add(david);
+//            fields[4][9].setGraphic(new ImageView(hero_up));
 
             scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 try {
-                    String input = "";
                     switch (event.getCode()) {
-//						TODO lav MOVE, xpos ypos til en metode? og en metode til at skrive lortet, i stedet for hundrede try catches
                         case UP:
-//                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " up\n");
-//                            System.out.println(inFromServer.readLine());
-                            input = "0 -1 up";
-//                            TODO at læse fra serveren skal gøres i en tråd, læse fra en tråd i en anden tråd
-//                            playerMoved(0, -1, "up");
+                            sendMoveCommand("0 -1 up");
                             break;
                         case DOWN:
-//                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " down\n");
-//                            System.out.println(inFromServer.readLine());
-                            input = "0 +1 down";
-//                            playerMoved(0, +1, "down");
+                            sendMoveCommand("0 +1 down");
                             break;
                         case LEFT:
-//                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " left\n");
-//                            System.out.println(inFromServer.readLine());
-                            input = "-1 0 left";
-//                            playerMoved(-1, 0, "left");
+                            sendMoveCommand("-1 0 left");
                             break;
                         case RIGHT:
-//                            outToServer.writeBytes("MOVE " + me.getXpos() + " " + me.getYpos() + " right\n");
-//                            System.out.println(inFromServer.readLine());
-                            input = "+1 0 right";
-//                            playerMoved(+1, 0, "right");
+                            sendMoveCommand("+1 0 right");
                             break;
                         default:
                             break;
                     }
-//                    String[] tokens = input.split(" ");
-                    sendMoveCommand(input);
-//                    String sentence = "MOVE " + me.name + " " + input + "\n";
-//
-//                    outToServer.writeBytes(sentence);
-
-//                    sentence += tokens[2] + "\n";
-
-//                    System.out.println(inFromServer.readLine());
-//                    playerMoved(Integer.parseInt(tokens[0]), Integer.parseInt(tokens[1]), tokens[2], me);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
 
+            outToServer.writeBytes("CONNECT " + myName + "\n");
+
             scoreList.setText(getScoreList());
-
-            //			listenForUpdates();
-
-
+//
+//            GUIX.GuiThread gt = new GUIX.GuiThread();
+//            gt.start();
+//
+//            outToServer.writeBytes("CONNECT " + myName + "\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -228,38 +207,9 @@ public class GUI extends Application {
     }
 
 
-    //	new method by yours truly TODO
-    public void sendMoveCommand(String input) throws IOException {
-        outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
-    }
-
-    //	new method by yours truly TODO
-    public void listenForUpdates() throws IOException {
-        String response;
-        while ((response = inFromServer.readLine()) != null) {
-            updateGameState(response);
-        }
-    }
-
-    //new method by yours truly
-    private void updateGameState(String response) {
-        String[] tokens = response.split(" ");
-        if (tokens[0].equals("PLAYER")) { //[0] = COMMAND
-            String playerName = tokens[1];
-            int xpos = Integer.parseInt(tokens[2]);
-            int ypos = Integer.parseInt(tokens[3]);
-            String direction = tokens[4];
-
-//			update GUI here with playerName xpos ypos direction
-        }
-    }
-
     public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
         player.direction = direction;
-//        me.direction = direction;
-//        int x = me.getXpos(), y = me.getYpos();
         int x = player.getXpos(), y = player.getYpos();
-//player
 
         if (board[y + delta_y].charAt(x + delta_x) == 'w') {
             player.addPoints(-1);
@@ -296,12 +246,13 @@ public class GUI extends Application {
                 player.setYpos(y);
             }
         }
+        System.out.println("X-pos:" + player.getXpos() + " Y-pos: " + player.getYpos());
         scoreList.setText(getScoreList());
     }
 
     public String getScoreList() {
         StringBuffer b = new StringBuffer(100);
-        for (Player p : players) {
+        for (Player p : playerMap.values()) {
             b.append(p + "\r\n");
         }
         return b.toString();
@@ -309,19 +260,70 @@ public class GUI extends Application {
 
     //Siger hvor spillere er
     public Player getPlayerAt(int x, int y) {
-        for (Player p : players) {
+        for (Player p : playerMap.values()) {
             if (p.getXpos() == x && p.getYpos() == y) {
                 return p;
-            } //TODO: brug den her til at tjekke hvor vidt der er en spiller placeret på en plads, når der forbindes?
+            }
         }
         return null;
     }
 
-    private Player createPlayer(String name, int xpos, int ypos, String direction) {
+    public void createAndRegisterSelf() {
+        if (me == null) {
+            // Vælg spawn point fra spawnPoints array
+            //TODO: en getSpawnPoint metode? Eller assignspawnpoint?
+            String[] spawnPoint = spawnPoints[connectedClients - 1].split(" ");
+            int spawnX = Integer.parseInt(spawnPoint[0]);
+            int spawnY = Integer.parseInt(spawnPoint[1]);
+            System.out.println("Spawn X: " + spawnX + " Spawn Y:" + spawnY);
+
+            // Opretter egen spiller
+            if (getPlayerAt(spawnX, spawnY) == null) {
+                System.out.println("No players here " + spawnX + " " + spawnY);
+                createPlayer(myName, spawnX, spawnY, "up", 0);
+            } else {
+                System.out.println("Can't create! Someones there");
+                spawnPoint = spawnPoints[(connectedClients) % spawnPoints.length].split(" ");
+                spawnX = Integer.parseInt(spawnPoint[0]);
+                spawnY = Integer.parseInt(spawnPoint[1]);
+
+                if (getPlayerAt(spawnX, spawnY) == null) {
+                    createPlayer(myName, spawnX, spawnY, "up", 0);
+                }
+            }
+//Kunne bruge wait og notify. If playerMap.size() < (connectedClients - 1) thread.wait,
+// og så notify når der kommer en besked?
+
+        }
+    }
+
+    public Player createPlayer(String name, int xpos, int ypos, String direction, int points) {
+        System.out.println("create player");
 //getplayerat == null?
-        Player player = new Player(name, xpos, ypos, direction);
-        players.add(player);
-        fields[xpos][ypos].setGraphic(new ImageView(hero_up));
+//createPlayer skal tage højde for spawn-location, og bruge metoden getPlayerAt for at se om der er nogen på pladsen.
+//Hvis der ikke er, så creater man, ellers prøver man en anden placering fra spawn-arrayet.
+
+        Player player = playerMap.get(name);
+        if (player == null) {
+            if (getPlayerAt(xpos, ypos) != null) {
+                System.out.println("Der står allerede en player!");
+            } else {
+                player = new Player(name, xpos, ypos, direction);
+                playerMap.put(name, player);
+                fields[xpos][ypos].setGraphic(new ImageView(hero_up));
+                player.setPoint(points);
+                if (name.equalsIgnoreCase(myName)) {
+                    me = player;
+                    try {
+                        sendPlayerState();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                scoreList.setText(getScoreList());
+            }
+        }
+        System.out.println("Player created: " + player.toString());
         return player;
         //            TODO: spawn points:
 //            1, 1
@@ -330,6 +332,22 @@ public class GUI extends Application {
 //            17, 1
     }
 
+    //	new method by yours truly TODO
+    public void sendMoveCommand(String input) throws IOException {
+        outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
+    }
+
+    private void sendPlayerState() throws IOException {
+        System.out.println("sendplayerstate");
+        if (me != null) {
+            outToServer.writeBytes("REGISTER " + me.getName() + " " + me.getXpos() + " " + me.getYpos() + " " +
+                    me.getDirection() + " " + me.getPoint() + "\n");
+//            TODO: lav en "getDetails" i Player klassen
+            System.out.println("SendPlayerState success");
+        }
+    }
+
+    //    GuiThread is a simple message-reader thread.
     private class GuiThread extends Thread {
         private GuiThread() {
         }
@@ -341,47 +359,119 @@ public class GUI extends Application {
             String inboundMessage;
             try {
                 while ((inboundMessage = inFromServer.readLine()) != null) {
-                    System.out.println(inboundMessage);
 
+                    System.out.println("Inbound message: " + inboundMessage);
                     String[] tokens = inboundMessage.split(" ");
                     String command = tokens[0];
-                    String name = tokens[1];
 
                     if (command.equalsIgnoreCase("MOVE")) {
-                        int delta_x = Integer.parseInt(tokens[2]);
-                        int delta_y = Integer.parseInt(tokens[3]);
-                        String direction = tokens[4];
-
-//                        TODO: lav "players" om til et hashmap, så der er en key (navnet) og en værdi (player),
-//                         så man ikke behøver lave ze loop
-                        for (Player p : players) {
-                            if (p.getName().equalsIgnoreCase(name)) {
-                                Platform.runLater( () -> {
-                                    playerMoved(delta_x, delta_y, direction, p);
-                                });
-//                                2, 3, 4, p
-                            }
-                        }
-                    }
-                    else if (tokens[0].equalsIgnoreCase("REGISTER")) {
-//                        createPlayer()
-                        System.out.println(inboundMessage);
+                        System.out.println("Inde i move: " + inboundMessage); //TODO: fjern sout
+                        handleMoveCommand(tokens);
+                    } else if (command.equalsIgnoreCase("REGISTER")) {
+//                            int x_coord = Integer.parseInt(tokens[2]);
+//                            int y_coord = Integer.parseInt(tokens[3]);
+//                            String direction = tokens[4];
+//
+////                            createPlayer(name, x_coord, y_coord, direction);
+//                            System.out.println("Player created: " + createPlayer(name, x_coord, y_coord, direction));
+//
+//                            int connectedClients = Integer.parseInt(tokens[5]);
+//                            if (playerMap.size() == (connectedClients - 1)) {
+////                            create player me
+//                                sendPlayerState();
+//                            }
+                        handleRegisterCommand(tokens);
 //                        TODO: kald opretSpiller. Dernæst, send beskeden ud til serveren, med hvem der ellers er af spillere,
 //                         dvs. deres navn, X & Y koordinater plus hvilken vej de vender.
+                    } else if (command.equalsIgnoreCase("CONNECT")) {
+//                        TODO: Send besked til server med ens egen spillers info?
+                        handleConnectCommand(tokens);
                     }
-//                    if REGISTER så laver man noget connection shit med nye players, tilføjer dem til sit board?
-//                    Hvis MOVE så flyttes den spiller der er i MOVE beskeden til (eller fra?) plads x, y,
-//                    og vender den vej der siges i beskeden.
-//                    if... Permission? IDK.
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-
         }
 
+        private void handleMoveCommand(String[] tokens) {
+            String name = tokens[1];
+            int delta_x = Integer.parseInt(tokens[2]);
+            int delta_y = Integer.parseInt(tokens[3]);
+            String direction = tokens[4];
 
+            Platform.runLater(() -> {
+                playerMoved(delta_x, delta_y, direction, playerMap.get(name));
+            });
+        }
+
+        private void handleRegisterCommand(String[] tokens) {
+//            TODO: kunne lave så man ved sendState... Øøøøh... IDK. Lemme think
+            String name = tokens[1];
+            if (!name.equalsIgnoreCase(myName)) {
+                int x_coord = Integer.parseInt(tokens[2]);
+                int y_coord = Integer.parseInt(tokens[3]);
+                String direction = tokens[4];
+                int points = Integer.parseInt(tokens[5]);
+                System.out.println("x_coord: " + x_coord);
+                System.out.println("y_coord: " + y_coord);
+                Platform.runLater(() -> createPlayer(name, x_coord, y_coord, direction, points)
+                );
+                System.out.println("Platform runLater thingie");
+
+            } else {
+            }
+            if (me == null) {
+                Platform.runLater(() -> createAndRegisterSelf());
+                System.out.println("Efter en run-later i handleRegisterCommand");
+            }
+
+        }
     }
+
+    private void handleConnectCommand(String[] tokens) throws IOException {
+        System.out.println("handle connect command");
+
+        String name = tokens[1];
+        int clientCount = Integer.parseInt(tokens[2]);
+        connectedClients = clientCount;
+        if (name.equalsIgnoreCase(myName)) {
+            Platform.runLater(() -> createAndRegisterSelf());
+        } else {
+            sendPlayerState();
+        }
+//            if (clientCount > connectedClients) {
+//                System.out.println("clientCount > connectedClients");
+//                System.out.println("clientCount: " + clientCount);
+//                System.out.println("connectedClients: " + connectedClients);
+//                connectedClients = clientCount;
+//            }
+//            System.out.println("Connected clients: " + connectedClients);
+//            System.out.println("Name equals myName: " + name.equalsIgnoreCase(myName));
+//            if (name.equalsIgnoreCase(myName) && (connectedClients - 1) == playerMap.size()) {
+//                // Min egen CONNECT besked modtaget – nu kan vi oprette spilleren
+//                System.out.println("name = myName, connectedClients -1 = map.size");
+//                String[] spawnPoint = spawnPoints[playerMap.size()].split(" ");
+//                int spawnX = Integer.parseInt(spawnPoint[0]);
+//                int spawnY = Integer.parseInt(spawnPoint[1]);
+//                System.out.println("There's a player here!");
+//                System.out.println(playerMap.size());
+//                System.out.println(spawnPoints[playerMap.size() + 1]);
+//                spawnX = Integer.parseInt(spawnPoint[0]);
+//                System.out.println(spawnX);
+//                spawnY = Integer.parseInt(spawnPoint[1]);
+//                System.out.println(spawnY);
+//                if (getPlayerAt(spawnX, spawnY) == null) {
+//                    System.out.println("runLater i handleConnectCommand");
+//                    createAndRegisterSelf();
+//                }
+//            } else {
+//                // Opretter ikke spilleren endnu, vi venter på en REGISTER kommando
+//                System.out.println("Send player state in handleConnectCommand");
+//                sendPlayerState();
+//            }
+    }
+
+
 }
 
 

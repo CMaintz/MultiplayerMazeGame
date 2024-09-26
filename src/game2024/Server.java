@@ -30,13 +30,15 @@ private static List<ServerThread> threads = new ArrayList<>();
             String connectionInfo = inFromClient.readLine();
 
             ServerThread serverThread = new ServerThread(connectionSocket, inFromClient);
-//            ServerThread serverThread = new ServerThread(connectionSocket, null);
+
             serverThread.start();
             threads.add(serverThread);
+// TODO: if threads.size == 1, altså det er kun dig der er connected, så create din spiller (dvs. REGISTER)
+//  ellers, send din spillers info, dvs. CONNECT.
 
+            connectionInfo += " " + threads.size();
             System.out.println(connectionInfo);
             broadcast(connectionInfo);
-//            broadcast("hej hej");
 
 
             System.out.println("Ny klient forbundet.");
@@ -50,7 +52,6 @@ private static List<ServerThread> threads = new ArrayList<>();
 
 //    I did a thing!
     public synchronized static void  broadcast(String command) throws IOException {
-        //TODO: er det den her der skal være synchronized?
         for (ServerThread st : threads) {
             st.listenForChanges(command);
         }
