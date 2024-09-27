@@ -43,8 +43,6 @@ private static List<ServerThread> threads = new ArrayList<>();
 
             System.out.println("Ny klient forbundet.");
 
-//            TODO indsæt den nye klients "player" i alle klienters liste over players.
-//            broadcast("Hej hej\n");
 
         }
 
@@ -57,7 +55,11 @@ private static List<ServerThread> threads = new ArrayList<>();
         }
     }
 
+//    I'm doing a thing!
     public static boolean removeThread(ServerThread thread) {
+//        TODO: logik til at fjerne tråden via en besked når man lukker GUI'en,
+//         som også fjerner spilleren fra boarded plus scoreboarded?
+//         Eller beholder på scoreboarded, mayhaps.
         boolean toReturn;
         if (toReturn = threads.contains(thread)) {
             System.out.println(threads.size());

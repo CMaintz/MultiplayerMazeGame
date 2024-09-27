@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
@@ -15,6 +16,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -40,7 +42,7 @@ public class GUI extends Application {
     private static String myName = "";
     public static Player me;
     public static Map<String, Player> playerMap = new HashMap<>();
-    private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17"};
+    private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17", "11 10", "5 7"};
 
     private int connectedClients = 0;
 
@@ -81,8 +83,8 @@ public class GUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-//          Opret en TextInputDialog for at få spillerens navn
-//          I stedet for at skulle hardcode lortet
+//           TODO: tilføj til inputDialog en mulighed for at indtaste serverens IP?
+
             TextInputDialog nameDialog = new TextInputDialog();
             nameDialog.setTitle("Indtast dit navn");
             nameDialog.setHeaderText("Velkommen til spillet!");
@@ -152,23 +154,6 @@ public class GUI extends Application {
 
             // Setting up standard players
 
-//            Player christoffer = new Player("Christoffer", 9, 4, "up");
-//            players.add(christoffer);
-//            fields[9][4].setGraphic(new ImageView(hero_up));
-//
-//            Player kenneth = new Player("Kenneth", 14, 15, "up");
-//            players.add(kenneth);
-//            fields[14][15].setGraphic(new ImageView(hero_up));
-//
-//            Player christian = new Player("Christian", 8, 13, "up");
-//            players.add(christian);
-//            fields[8][13].setGraphic(new ImageView(hero_up));
-//            //6 til venstre for harry, 2 op.
-//
-//            Player david = new Player("David", 4, 9, "up");
-//            players.add(david);
-//            fields[4][9].setGraphic(new ImageView(hero_up));
-
             scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 try {
                     switch (event.getCode()) {
@@ -191,21 +176,11 @@ public class GUI extends Application {
                     throw new RuntimeException(e);
                 }
             });
-
             outToServer.writeBytes("CONNECT " + myName + "\n");
-
-            scoreList.setText(getScoreList());
-//
-//            GUIX.GuiThread gt = new GUIX.GuiThread();
-//            gt.start();
-//
-//            outToServer.writeBytes("CONNECT " + myName + "\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
-
 
     public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
         player.direction = direction;
@@ -268,71 +243,56 @@ public class GUI extends Application {
         return null;
     }
 
+    private void handleClosing() {
+
+    }
     public void createAndRegisterSelf() {
         if (me == null) {
             // Vælg spawn point fra spawnPoints array
             //TODO: en getSpawnPoint metode? Eller assignspawnpoint?
-            String[] spawnPoint = spawnPoints[connectedClients - 1].split(" ");
+            int spawnIndex = connectedClients - 1;
+            String[] spawnPoint = spawnPoints[(spawnIndex) % spawnPoints.length].split(" ");
             int spawnX = Integer.parseInt(spawnPoint[0]);
             int spawnY = Integer.parseInt(spawnPoint[1]);
-            System.out.println("Spawn X: " + spawnX + " Spawn Y:" + spawnY);
-
-            // Opretter egen spiller
-            if (getPlayerAt(spawnX, spawnY) == null) {
-                System.out.println("No players here " + spawnX + " " + spawnY);
-                createPlayer(myName, spawnX, spawnY, "up", 0);
-            } else {
-                System.out.println("Can't create! Someones there");
+            while (getPlayerAt(spawnX, spawnY) != null) {
+                spawnIndex++;
                 spawnPoint = spawnPoints[(connectedClients) % spawnPoints.length].split(" ");
                 spawnX = Integer.parseInt(spawnPoint[0]);
                 spawnY = Integer.parseInt(spawnPoint[1]);
-
-                if (getPlayerAt(spawnX, spawnY) == null) {
-                    createPlayer(myName, spawnX, spawnY, "up", 0);
-                }
             }
-//Kunne bruge wait og notify. If playerMap.size() < (connectedClients - 1) thread.wait,
-// og så notify når der kommer en besked?
-
+            // Opretter egen spiller
+            createPlayer(myName, spawnX, spawnY, "up", 0);
+            System.out.println("Spawn X: " + spawnX + " Spawn Y:" + spawnY);
         }
     }
 
-    public Player createPlayer(String name, int xpos, int ypos, String direction, int points) {
+    public void createPlayer(String name, int xpos, int ypos, String direction, int points) {
         System.out.println("create player");
-//getplayerat == null?
-//createPlayer skal tage højde for spawn-location, og bruge metoden getPlayerAt for at se om der er nogen på pladsen.
-//Hvis der ikke er, så creater man, ellers prøver man en anden placering fra spawn-arrayet.
 
-        Player player = playerMap.get(name);
-        if (player == null) {
+        if (playerMap.get(name) == null) {
             if (getPlayerAt(xpos, ypos) != null) {
                 System.out.println("Der står allerede en player!");
             } else {
-                player = new Player(name, xpos, ypos, direction);
-                playerMap.put(name, player);
+                Player newPlayer = new Player(name, xpos, ypos, direction);
+                playerMap.put(name, newPlayer);
                 fields[xpos][ypos].setGraphic(new ImageView(hero_up));
-                player.setPoint(points);
+                newPlayer.setPoint(points);
+                scoreList.setText(getScoreList());
+
                 if (name.equalsIgnoreCase(myName)) {
-                    me = player;
+                    me = newPlayer;
                     try {
                         sendPlayerState();
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        e.printStackTrace();
                     }
                 }
-                scoreList.setText(getScoreList());
+                System.out.println("Player created: " + newPlayer.getXpos() + " " + newPlayer.getYpos()); //TODO fjern SOUT
             }
         }
-        System.out.println("Player created: " + player.toString());
-        return player;
-        //            TODO: spawn points:
-//            1, 1
-//            1, 8
-//            17, 18
-//            17, 1
     }
 
-    //	new method by yours truly TODO
+    //	new method by yours truly
     public void sendMoveCommand(String input) throws IOException {
         outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
     }
@@ -340,10 +300,8 @@ public class GUI extends Application {
     private void sendPlayerState() throws IOException {
         System.out.println("sendplayerstate");
         if (me != null) {
-            outToServer.writeBytes("REGISTER " + me.getName() + " " + me.getXpos() + " " + me.getYpos() + " " +
-                    me.getDirection() + " " + me.getPoint() + "\n");
-//            TODO: lav en "getDetails" i Player klassen
-            System.out.println("SendPlayerState success");
+            outToServer.writeBytes("REGISTER " + me.getState() + "\n");
+            System.out.println("SendPlayerState success"); //TODO remove SOUT
         }
     }
 
@@ -352,7 +310,7 @@ public class GUI extends Application {
         private GuiThread() {
         }
 
-        //Run Later
+        //Runs when the GUI has finished compiling
         @Override
         public void run() {
 
@@ -381,10 +339,7 @@ public class GUI extends Application {
 //                                sendPlayerState();
 //                            }
                         handleRegisterCommand(tokens);
-//                        TODO: kald opretSpiller. Dernæst, send beskeden ud til serveren, med hvem der ellers er af spillere,
-//                         dvs. deres navn, X & Y koordinater plus hvilken vej de vender.
                     } else if (command.equalsIgnoreCase("CONNECT")) {
-//                        TODO: Send besked til server med ens egen spillers info?
                         handleConnectCommand(tokens);
                     }
                 }
@@ -405,7 +360,6 @@ public class GUI extends Application {
         }
 
         private void handleRegisterCommand(String[] tokens) {
-//            TODO: kunne lave så man ved sendState... Øøøøh... IDK. Lemme think
             String name = tokens[1];
             if (!name.equalsIgnoreCase(myName)) {
                 int x_coord = Integer.parseInt(tokens[2]);
@@ -418,15 +372,16 @@ public class GUI extends Application {
                 );
                 System.out.println("Platform runLater thingie");
 
-            } else {
             }
-            if (me == null) {
-                Platform.runLater(() -> createAndRegisterSelf());
-                System.out.println("Efter en run-later i handleRegisterCommand");
-            }
+//            if (me == null) { //TODO: fjern hele nedenstående, så det kun er i handleConnectCommand der kaldes createAndReg?
+//                System.out.println("Me == null i handleRegisterCommand");
+//                Platform.runLater(() -> createAndRegisterSelf());
+//                System.out.println("Efter en run-later i handleRegisterCommand");
+//            }
 
         }
     }
+
 
     private void handleConnectCommand(String[] tokens) throws IOException {
         System.out.println("handle connect command");

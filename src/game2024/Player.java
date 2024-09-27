@@ -52,4 +52,8 @@ public class Player {
 	public String toString() {
 		return name+":   "+point;
 	}
+
+	public String getState() {
+		return this.getName() + " " + this.getXpos() + " " + this.getYpos() + " " + this.getDirection() + " " + this.getPoint();
+	}
 }
