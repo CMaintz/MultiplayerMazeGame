@@ -233,7 +233,7 @@ public class GUI extends Application {
         if (player != null) {
             hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
         } else {
-            hashValue = player.getName().hashCode();
+            hashValue = myName.hashCode();
         }
         // Brug hash-værdien til at vælge et spawn-point
         int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
