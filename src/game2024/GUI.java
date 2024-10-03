@@ -1,10 +1,11 @@
 package game2024;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Dialog;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
@@ -16,17 +17,22 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.util.Pair;
+import javafx.util.Duration;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class GUI extends Application {
+    private static String serverIP = "localhost";
     private static Socket clientSocket;
     private static BufferedReader inFromServer;
     private static DataOutputStream outToServer;
@@ -38,14 +44,16 @@ public class GUI extends Application {
     public static Image image_floor;
     public static Image image_wall;
     public static Image hero_right, hero_left, hero_up, hero_down;
+    public static Image lazer_right, lazer_left, lazer_up, lazer_down;
+    public static Image lazer_horizontal, lazer_vertical;
+    public static Image wall_hit_north, wall_hit_south, wall_hit_east, wall_hit_west;
 
-    private static String myName = "";
+    private static String myName;
     public static Player me;
     public static Map<String, Player> playerMap = new HashMap<>();
     private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17", "11 10", "5 7"};
-
-    private int connectedClients = 0;
-
+    private int connectedClients = -1;
+    private boolean isFrozen = false;
     private Label[][] fields;
     private TextArea scoreList;
 
@@ -83,20 +91,11 @@ public class GUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-//           TODO: tilføj til inputDialog en mulighed for at indtaste serverens IP?
-
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setTitle("Indtast dit navn");
-            nameDialog.setHeaderText("Velkommen til spillet!");
-            nameDialog.setContentText("Indtast dit navn:");
-
-//          Venter på brugerens input med showAndWait()
-            nameDialog.showAndWait();
-            myName = nameDialog.getResult();
-
-            clientSocket = new Socket("localhost", 6789);
+            clientSocket = new Socket(serverIP, 6789);
             outToServer = new DataOutputStream(clientSocket.getOutputStream());
             inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+            loadImages();
 
             GridPane grid = new GridPane();
             grid.setHgap(10);
@@ -112,17 +111,6 @@ public class GUI extends Application {
             scoreList = new TextArea();
 
             GridPane boardGrid = new GridPane();
-
-            image_wall = new Image(getClass().getResourceAsStream("Image/wall4.png"), size, size, false, false);
-            image_floor = new Image(getClass().getResourceAsStream("Image/floor1.png"), size, size, false, false);
-
-            hero_right = new Image(getClass().getResourceAsStream("Image/heroRight.png"), size, size, false, false);
-            hero_left = new Image(getClass().getResourceAsStream("Image/heroLeft.png"), size, size, false, false);
-            hero_up = new Image(getClass().getResourceAsStream("Image/heroUp.png"), size, size, false, false);
-            hero_down = new Image(getClass().getResourceAsStream("Image/heroDown.png"), size, size, false, false);
-
-            GuiThread gt = new GuiThread();
-            gt.start();
 
             fields = new Label[20][20];
             for (int j = 0; j < 20; j++) {
@@ -142,7 +130,6 @@ public class GUI extends Application {
             }
             scoreList.setEditable(false);
 
-
             grid.add(mazeLabel, 0, 0);
             grid.add(scoreLabel, 1, 0);
             grid.add(boardGrid, 0, 1);
@@ -152,11 +139,12 @@ public class GUI extends Application {
             primaryStage.setScene(scene);
             primaryStage.show();
 
-            // Setting up standard players
-
             scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 try {
                     switch (event.getCode()) {
+                        case SPACE:
+                            sendPewpewCommand();
+                            break;
                         case UP:
                             sendMoveCommand("0 -1 up");
                             break;
@@ -176,54 +164,18 @@ public class GUI extends Application {
                     throw new RuntimeException(e);
                 }
             });
-            outToServer.writeBytes("CONNECT " + myName + "\n");
+
+            primaryStage.setOnCloseRequest(event -> closeClient());
+            GuiThread gt = new GuiThread();
+            gt.start();
+            sendConnectCommand();
+            registerName();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
-        player.direction = direction;
-        int x = player.getXpos(), y = player.getYpos();
-
-        if (board[y + delta_y].charAt(x + delta_x) == 'w') {
-            player.addPoints(-1);
-        } else {
-            Player p = getPlayerAt(x + delta_x, y + delta_y);
-            if (p != null) {
-                player.addPoints(10);
-                p.addPoints(-10);
-            } else {
-                player.addPoints(1);
-
-                fields[x][y].setGraphic(new ImageView(image_floor));
-                x += delta_x;
-                y += delta_y;
-
-                if (direction.equals("right")) {
-                    fields[x][y].setGraphic(new ImageView(hero_right));
-                }
-                ;
-                if (direction.equals("left")) {
-                    fields[x][y].setGraphic(new ImageView(hero_left));
-                }
-                ;
-                if (direction.equals("up")) {
-                    fields[x][y].setGraphic(new ImageView(hero_up));
-                }
-                ;
-                if (direction.equals("down")) {
-                    fields[x][y].setGraphic(new ImageView(hero_down));
-                }
-                ;
-
-                player.setXpos(x);
-                player.setYpos(y);
-            }
-        }
-        System.out.println("X-pos:" + player.getXpos() + " Y-pos: " + player.getYpos());
-        scoreList.setText(getScoreList());
-    }
 
     public String getScoreList() {
         StringBuffer b = new StringBuffer(100);
@@ -243,65 +195,327 @@ public class GUI extends Application {
         return null;
     }
 
-    private void handleClosing() {
+    public void playerMoved(int delta_x, int delta_y, String direction, Player player) {
+        player.setDirection(direction);
+        int x = player.getXpos(), y = player.getYpos();
+
+        if (isAWall(x + delta_x, y + delta_y)) {
+            player.addPoints(-1);
+        } else {
+            Player p = getPlayerAt(x + delta_x, y + delta_y);
+            if (p != null) {
+                player.addPoints(10);
+                p.addPoints(-10);
+            } else {
+                player.addPoints(1);
+
+                resetFloor(x, y);
+                x += delta_x;
+                y += delta_y;
+
+
+                player.setXpos(x);
+                player.setYpos(y);
+                player.setDirection(direction);
+            }
+        }
+        renderPlayer(x, y, direction);
+        System.out.println("X-pos:" + player.getXpos() + " Y-pos: " + player.getYpos());
+        scoreList.setText(getScoreList());
+    }
+
+    private boolean isAWall(int x, int y) {
+        return board[y].charAt(x) == 'w';
+    }
+
+    private String getDeterministicSpawnPoint(String playerName) {
+        // Brug spillerens navn i stedet for ID
+        int hashValue = getHashValue(playerName);
+        // Brug hash-værdien til at vælge et spawn-point
+        int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
+        String coordinates = spawnPoints[spawnIndex];
+
+        // Find ledig plads, hvis nødvendigt
+        int spawnX = Integer.parseInt(coordinates.split(" ")[0]);
+        int spawnY = Integer.parseInt(coordinates.split(" ")[1]);
+        while (getPlayerAt(spawnX, spawnY) != null) {
+            spawnIndex = (spawnIndex + 1) % spawnPoints.length;
+            coordinates = spawnPoints[spawnIndex];
+            spawnX = Integer.parseInt(coordinates.split(" ")[0]);
+            spawnY = Integer.parseInt(coordinates.split(" ")[1]);
+        }
+
+        return coordinates;
+    }
+
+    private int getHashValue(String input) {
+        try {
+            // Brug SHA-256 til at hash'e spillerens navn
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
+
+            // Konverter hash-byte-array til en integer-værdi
+            return new BigInteger(1, hashBytes).intValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0; // Default fallback
+        }
+    }
+
+    private void spawnPlayer(Player player) {
+        String[] spawnCoordinates = getDeterministicSpawnPoint(player.getName()).split(" ");
+        int spawnX = Integer.parseInt(spawnCoordinates[0]);
+        int spawnY = Integer.parseInt(spawnCoordinates[1]);
+
+        player.setXpos(spawnX);
+        player.setYpos(spawnY);
+        renderPlayer(spawnX, spawnY, "up");
+    }
+
+    public void playerDied(Player shooter, Player deadPlayer) {
+        spawnPlayer(deadPlayer);
+        deadPlayer.setPoint(deadPlayer.getPoint() - 50);
+        shooter.setPoint(shooter.getPoint() + 50);
+        scoreList.setText(getScoreList());
 
     }
+
+    public void renderPlayer(int x, int y, String direction) {
+        if (direction.equals("right")) {
+            fields[x][y].setGraphic(new ImageView(hero_right));
+        }
+        ;
+        if (direction.equals("left")) {
+            fields[x][y].setGraphic(new ImageView(hero_left));
+        }
+        ;
+        if (direction.equals("up")) {
+            fields[x][y].setGraphic(new ImageView(hero_up));
+        }
+        ;
+        if (direction.equals("down")) {
+            fields[x][y].setGraphic(new ImageView(hero_down));
+        }
+        ;
+
+    }
+
+
+    private void resetFloor(int x, int y) {
+        fields[x][y].setGraphic(new ImageView(image_floor));
+    }
+
+    private void pewPew(String name, int delta_x, int delta_y, String direction) {
+        Player murderer = playerMap.get(name);
+
+        int x_coord = murderer.getXpos(), y_coord = murderer.getYpos();
+        int delta_X = delta_x, delta_Y = delta_y;
+
+        renderLazer(x_coord += delta_X, y_coord += delta_Y, direction, true, false);
+
+        while (!isAWall(x_coord + delta_X, y_coord + delta_Y)) {
+
+            x_coord += delta_X;
+            y_coord += delta_Y;
+            renderLazer(x_coord, y_coord, direction, false, false);
+            Player hitPlayer = getPlayerAt(x_coord, y_coord);
+            if (hitPlayer != null) {
+                playerDied(murderer, getPlayerAt(x_coord, y_coord));
+            }
+        }
+        renderLazer(x_coord, y_coord, direction, false, true);
+    }
+
+    private void renderLazer(int x, int y, String direction, boolean start, boolean end) {
+        if (direction.equals("right")) {
+            if (start) {
+                fields[x][y].setGraphic(new ImageView(lazer_right));
+            } else if (end) {
+                fields[x][y].setGraphic(new ImageView(wall_hit_east));
+            } else {
+                fields[x][y].setGraphic(new ImageView(lazer_horizontal));
+            }
+        } else if (direction.equals("left")) {
+            if (start) {
+                fields[x][y].setGraphic(new ImageView(lazer_left));
+            } else if (end) {
+                fields[x][y].setGraphic(new ImageView(wall_hit_west));
+            } else {
+                fields[x][y].setGraphic(new ImageView(lazer_horizontal));
+            }
+        } else if (direction.equals("up")) {
+            if (start) {
+                fields[x][y].setGraphic(new ImageView(lazer_up));
+            } else if (end) {
+                fields[x][y].setGraphic(new ImageView(wall_hit_north));
+            } else {
+                fields[x][y].setGraphic(new ImageView(lazer_vertical));
+            }
+        } else if (direction.equals("down")) {
+            if (start) {
+                fields[x][y].setGraphic(new ImageView(lazer_down));
+            } else if (end) {
+                fields[x][y].setGraphic(new ImageView(wall_hit_south));
+            } else {
+                fields[x][y].setGraphic(new ImageView(lazer_vertical));
+            }
+        }
+
+
+        PauseTransition pause = new PauseTransition(Duration.seconds(1));
+        pause.setOnFinished(event -> {
+            resetFloor(x, y);
+            isFrozen = false;
+        });
+        pause.play();
+    }
+
+    public void closeClient() {
+        try {
+            sendDisconnectCommand();
+            if (outToServer != null) {
+                outToServer.close(); // Luk DataOutputStream
+            }
+            if (inFromServer != null) {
+                inFromServer.close(); // Luk BufferedReader
+            }
+            if (clientSocket != null && !clientSocket.isClosed()) {
+                clientSocket.close(); // Luk selve socket-forbindelsen
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void showAlert(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void registerName() throws IOException {
+        TextInputDialog nameDialog = new TextInputDialog();
+        nameDialog.setTitle("Indtast dit navn");
+        nameDialog.setHeaderText("Velkommen til spillet!");
+        nameDialog.setContentText("Indtast dit navn:");
+
+        while (myName == null) {
+            Optional<String> result = nameDialog.showAndWait();
+            if (result.isPresent()) {
+                String enteredName = result.get().trim();
+                if (playerMap.containsKey(enteredName)) {
+                    showAlert("Navnet er allerede brugt", "Hov hov, du! Navnet er allerede brugt!\nPrøv venligst et andet navn.");
+                } else {
+                    myName = enteredName;
+                    if ((connectedClients - 1) == playerMap.size() && me == null) {
+                        System.out.println("i registerName if");
+                        Platform.runLater(() -> createAndRegisterSelf());
+                        System.out.println("Efter en run-later i registerName");
+                    }
+                }
+//            } else {
+//                nameDialog = new TextInputDialog();
+//                nameDialog.setTitle("Fy! Indtast dit navn");
+//                nameDialog.setHeaderText("Hov hov, du. Der kan kun være én spiller med et givent navn");
+//                nameDialog.setContentText("FEJL: Tidligere indtastet navn var allerede taget.\n Venligst indtast et andet navn:");
+//            }
+//                if (playerMap.get(result) == null) {
+//                }
+                //TODO: evt en IP dialog? HMM
+
+                //TODO: evt. send en besked til serveren, som bare er "CONNECT", som gør at alle sender deres info til én.
+                // Så når man har fået det antal spillere der er i threadsize-1, så kan man oprette sin egen spiller, i tilfælde
+                // af at navnet ikke er lig med navnet på en eksisterende spiller..? Og ellers, så laver den navnet om til navn + i++
+//Alternativt kan der være en navneliste på serveren, som sendes til at starte med, og så tjekker man om det indtastede navn matcher.
+//Hvis det matcher, så får du en fejlbesked i dialogen, som siger navnet allerede er taget.
+//Det betyder selvfølgelig at den første besked der kommer ind til serveren, ikke er en connect besked, men en...
+//NewConnection besked? Som gør, at alle spillernavne sendes til klienten. Dvs, socket halløj o.l. skal ud
+            }
+        }
+    }
+
     public void createAndRegisterSelf() {
         if (me == null) {
-            // Vælg spawn point fra spawnPoints array
-            //TODO: en getSpawnPoint metode? Eller assignspawnpoint?
-            int spawnIndex = connectedClients - 1;
-            String[] spawnPoint = spawnPoints[(spawnIndex) % spawnPoints.length].split(" ");
-            int spawnX = Integer.parseInt(spawnPoint[0]);
-            int spawnY = Integer.parseInt(spawnPoint[1]);
-            while (getPlayerAt(spawnX, spawnY) != null) {
-                spawnIndex++;
-                spawnPoint = spawnPoints[(connectedClients) % spawnPoints.length].split(" ");
-                spawnX = Integer.parseInt(spawnPoint[0]);
-                spawnY = Integer.parseInt(spawnPoint[1]);
-            }
+            String[] spawnCoordinates = getDeterministicSpawnPoint(myName).split(" ");
+            int spawnX = Integer.parseInt(spawnCoordinates[0]);
+            int spawnY = Integer.parseInt(spawnCoordinates[1]);
             // Opretter egen spiller
             createPlayer(myName, spawnX, spawnY, "up", 0);
-            System.out.println("Spawn X: " + spawnX + " Spawn Y:" + spawnY);
         }
     }
 
     public void createPlayer(String name, int xpos, int ypos, String direction, int points) {
-        System.out.println("create player");
-
         if (playerMap.get(name) == null) {
-            if (getPlayerAt(xpos, ypos) != null) {
-                System.out.println("Der står allerede en player!");
-            } else {
+            if (getPlayerAt(xpos, ypos) == null) {
                 Player newPlayer = new Player(name, xpos, ypos, direction);
                 playerMap.put(name, newPlayer);
-                fields[xpos][ypos].setGraphic(new ImageView(hero_up));
+
+                renderPlayer(xpos, ypos, direction);
+
                 newPlayer.setPoint(points);
                 scoreList.setText(getScoreList());
 
                 if (name.equalsIgnoreCase(myName)) {
                     me = newPlayer;
                     try {
-                        sendPlayerState();
+                        sendRegisterCommand();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
-                System.out.println("Player created: " + newPlayer.getXpos() + " " + newPlayer.getYpos()); //TODO fjern SOUT
             }
         }
     }
 
-    //	new method by yours truly
-    public void sendMoveCommand(String input) throws IOException {
-        outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
+    private void removePlayer(String name) {
+        Player removedPlayer = playerMap.remove(name);
+        int x = removedPlayer.getXpos(), y = removedPlayer.getYpos();
+        resetFloor(x, y);
+        removedPlayer = null;
+        scoreList.setText(getScoreList());
     }
 
-    private void sendPlayerState() throws IOException {
-        System.out.println("sendplayerstate");
+    private void sendPewpewCommand() throws IOException {
+        String direction = me.getDirection();
+        int delta_X = 0, delta_Y = 0;
+        int x_coord = me.getXpos(), y_coord = me.getYpos();
+        if (direction.equalsIgnoreCase("up")) {
+            delta_Y = -1;
+        } else if (direction.equalsIgnoreCase("down")) {
+            delta_Y = 1;
+        } else if (direction.equalsIgnoreCase("left")) {
+            delta_X = -1;
+        } else if (direction.equalsIgnoreCase("right")) {
+            delta_X = 1;
+        }
+        if (!isAWall(x_coord + delta_X, y_coord + delta_Y) && !isAWall(x_coord + (2 * delta_X), y_coord + (2 * delta_Y))) {
+            isFrozen = true;
+            outToServer.writeBytes("PEWPEW " + myName + " " +
+                    delta_X + " " + delta_Y + " " + me.getDirection() + "\n");
+        }
+    }
+
+    public void sendConnectCommand() throws IOException {
+        outToServer.writeBytes("CONNECT\n");
+    }
+
+    public void sendDisconnectCommand() throws IOException {
+        outToServer.writeBytes("DISCONNECT " + myName + "\n");
+    }
+
+    public void sendMoveCommand(String input) throws IOException {
+        if (!isFrozen) {
+            outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
+        }
+    }
+
+    // sendPlayerState:
+    private void sendRegisterCommand() throws IOException {
         if (me != null) {
             outToServer.writeBytes("REGISTER " + me.getState() + "\n");
-            System.out.println("SendPlayerState success"); //TODO remove SOUT
         }
     }
 
@@ -316,31 +530,21 @@ public class GUI extends Application {
 
             String inboundMessage;
             try {
-                while ((inboundMessage = inFromServer.readLine()) != null) {
-
+                while (!clientSocket.isClosed() && (inboundMessage = inFromServer.readLine()) != null) {
                     System.out.println("Inbound message: " + inboundMessage);
                     String[] tokens = inboundMessage.split(" ");
                     String command = tokens[0];
 
                     if (command.equalsIgnoreCase("MOVE")) {
-                        System.out.println("Inde i move: " + inboundMessage); //TODO: fjern sout
                         handleMoveCommand(tokens);
                     } else if (command.equalsIgnoreCase("REGISTER")) {
-//                            int x_coord = Integer.parseInt(tokens[2]);
-//                            int y_coord = Integer.parseInt(tokens[3]);
-//                            String direction = tokens[4];
-//
-////                            createPlayer(name, x_coord, y_coord, direction);
-//                            System.out.println("Player created: " + createPlayer(name, x_coord, y_coord, direction));
-//
-//                            int connectedClients = Integer.parseInt(tokens[5]);
-//                            if (playerMap.size() == (connectedClients - 1)) {
-////                            create player me
-//                                sendPlayerState();
-//                            }
                         handleRegisterCommand(tokens);
                     } else if (command.equalsIgnoreCase("CONNECT")) {
                         handleConnectCommand(tokens);
+                    } else if (command.equalsIgnoreCase("DISCONNECT")) {
+                        handleDisconnectCommand(tokens);
+                    } else if (command.equalsIgnoreCase("PEWPEW")) {
+                        handlePewpewCommand(tokens);
                     }
                 }
             } catch (IOException e) {
@@ -348,15 +552,20 @@ public class GUI extends Application {
             }
         }
 
+        private void handlePewpewCommand(String[] tokens) {
+            String name = tokens[1];
+            int delta_X = Integer.parseInt(tokens[2]);
+            int delta_Y = Integer.parseInt(tokens[3]);
+            String direction = tokens[4];
+            Platform.runLater(() -> pewPew(name, delta_X, delta_Y, direction));
+        }
+
         private void handleMoveCommand(String[] tokens) {
             String name = tokens[1];
             int delta_x = Integer.parseInt(tokens[2]);
             int delta_y = Integer.parseInt(tokens[3]);
             String direction = tokens[4];
-
-            Platform.runLater(() -> {
-                playerMoved(delta_x, delta_y, direction, playerMap.get(name));
-            });
+            Platform.runLater(() -> playerMoved(delta_x, delta_y, direction, playerMap.get(name)));
         }
 
         private void handleRegisterCommand(String[] tokens) {
@@ -366,67 +575,48 @@ public class GUI extends Application {
                 int y_coord = Integer.parseInt(tokens[3]);
                 String direction = tokens[4];
                 int points = Integer.parseInt(tokens[5]);
-                System.out.println("x_coord: " + x_coord);
-                System.out.println("y_coord: " + y_coord);
-                Platform.runLater(() -> createPlayer(name, x_coord, y_coord, direction, points)
-                );
-                System.out.println("Platform runLater thingie");
-
+                Platform.runLater(() -> createPlayer(name, x_coord, y_coord, direction, points));
             }
-//            if (me == null) { //TODO: fjern hele nedenstående, så det kun er i handleConnectCommand der kaldes createAndReg?
-//                System.out.println("Me == null i handleRegisterCommand");
-//                Platform.runLater(() -> createAndRegisterSelf());
-//                System.out.println("Efter en run-later i handleRegisterCommand");
-//            }
-
         }
+
+        private void handleConnectCommand(String[] tokens) throws IOException {
+            int clientCount = Integer.parseInt(tokens[1]);
+            connectedClients = clientCount;
+            sendRegisterCommand();
+        }
+
+        private void handleDisconnectCommand(String[] tokens) {
+            String name = tokens[1];
+            if (playerMap.containsKey(name)) {
+                Platform.runLater(() -> removePlayer(name));
+            }
+        }
+
+
     }
 
+    private void loadImages() {
+        image_wall = new Image(getClass().getResourceAsStream("Image/wall4.png"), size, size, false, false);
+        image_floor = new Image(getClass().getResourceAsStream("Image/floor1.png"), size, size, false, false);
 
-    private void handleConnectCommand(String[] tokens) throws IOException {
-        System.out.println("handle connect command");
+        hero_right = new Image(getClass().getResourceAsStream("Image/heroRight.png"), size, size, false, false);
+        hero_left = new Image(getClass().getResourceAsStream("Image/heroLeft.png"), size, size, false, false);
+        hero_up = new Image(getClass().getResourceAsStream("Image/heroUp.png"), size, size, false, false);
+        hero_down = new Image(getClass().getResourceAsStream("Image/heroDown.png"), size, size, false, false);
 
-        String name = tokens[1];
-        int clientCount = Integer.parseInt(tokens[2]);
-        connectedClients = clientCount;
-        if (name.equalsIgnoreCase(myName)) {
-            Platform.runLater(() -> createAndRegisterSelf());
-        } else {
-            sendPlayerState();
-        }
-//            if (clientCount > connectedClients) {
-//                System.out.println("clientCount > connectedClients");
-//                System.out.println("clientCount: " + clientCount);
-//                System.out.println("connectedClients: " + connectedClients);
-//                connectedClients = clientCount;
-//            }
-//            System.out.println("Connected clients: " + connectedClients);
-//            System.out.println("Name equals myName: " + name.equalsIgnoreCase(myName));
-//            if (name.equalsIgnoreCase(myName) && (connectedClients - 1) == playerMap.size()) {
-//                // Min egen CONNECT besked modtaget – nu kan vi oprette spilleren
-//                System.out.println("name = myName, connectedClients -1 = map.size");
-//                String[] spawnPoint = spawnPoints[playerMap.size()].split(" ");
-//                int spawnX = Integer.parseInt(spawnPoint[0]);
-//                int spawnY = Integer.parseInt(spawnPoint[1]);
-//                System.out.println("There's a player here!");
-//                System.out.println(playerMap.size());
-//                System.out.println(spawnPoints[playerMap.size() + 1]);
-//                spawnX = Integer.parseInt(spawnPoint[0]);
-//                System.out.println(spawnX);
-//                spawnY = Integer.parseInt(spawnPoint[1]);
-//                System.out.println(spawnY);
-//                if (getPlayerAt(spawnX, spawnY) == null) {
-//                    System.out.println("runLater i handleConnectCommand");
-//                    createAndRegisterSelf();
-//                }
-//            } else {
-//                // Opretter ikke spilleren endnu, vi venter på en REGISTER kommando
-//                System.out.println("Send player state in handleConnectCommand");
-//                sendPlayerState();
-//            }
+        lazer_right = new Image(getClass().getResourceAsStream("Image/fireRight.png"), size, size, false, false);
+        lazer_left = new Image(getClass().getResourceAsStream("Image/fireLeft.png"), size, size, false, false);
+        lazer_up = new Image(getClass().getResourceAsStream("Image/fireUp.png"), size, size, false, false);
+        lazer_down = new Image(getClass().getResourceAsStream("Image/fireDown.png"), size, size, false, false);
+
+        lazer_horizontal = new Image(getClass().getResourceAsStream("Image/fireHorizontal.png"), size, size, false, false);
+        lazer_vertical = new Image(getClass().getResourceAsStream("Image/fireVertical.png"), size, size, false, false);
+
+        wall_hit_north = new Image(getClass().getResourceAsStream("Image/fireWallNorth.png"), size, size, false, false);
+        wall_hit_south = new Image(getClass().getResourceAsStream("Image/fireWallSouth.png"), size, size, false, false);
+        wall_hit_east = new Image(getClass().getResourceAsStream("Image/fireWallEast.png"), size, size, false, false);
+        wall_hit_west = new Image(getClass().getResourceAsStream("Image/fireWallWest.png"), size, size, false, false);
     }
-
-
 }
 
 

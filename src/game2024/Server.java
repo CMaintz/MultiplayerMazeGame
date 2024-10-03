@@ -1,6 +1,5 @@
 package game2024;
 
-import javax.sound.sampled.Port;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -10,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Server {
-private static List<ServerThread> threads = new ArrayList<>();
+    private static List<ServerThread> threads = new ArrayList<>();
 
-//Send players og / eller sockets med ind i tråden?
+    //Send players og / eller sockets med ind i tråden?
     public static void main(String[] args) throws Exception {
         int port = 6789;
 
@@ -33,33 +32,25 @@ private static List<ServerThread> threads = new ArrayList<>();
 
             serverThread.start();
             threads.add(serverThread);
-// TODO: if threads.size == 1, altså det er kun dig der er connected, så create din spiller (dvs. REGISTER)
-//  ellers, send din spillers info, dvs. CONNECT.
 
             connectionInfo += " " + threads.size();
             System.out.println(connectionInfo);
             broadcast(connectionInfo);
 
-
             System.out.println("Ny klient forbundet.");
-
-
         }
 
     }
 
-//    I did a thing!
-    public synchronized static void  broadcast(String command) throws IOException {
+    //    I did a thing!
+    public synchronized static void broadcast(String command) throws IOException {
         for (ServerThread st : threads) {
             st.listenForChanges(command);
         }
     }
 
-//    I'm doing a thing!
-    public static boolean removeThread(ServerThread thread) {
-//        TODO: logik til at fjerne tråden via en besked når man lukker GUI'en,
-//         som også fjerner spilleren fra boarded plus scoreboarded?
-//         Eller beholder på scoreboarded, mayhaps.
+    //    I'm doing a thing!
+    public static boolean removeClient(ServerThread thread) {
         boolean toReturn;
         if (toReturn = threads.contains(thread)) {
             System.out.println(threads.size());
