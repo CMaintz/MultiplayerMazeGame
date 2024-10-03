@@ -229,8 +229,12 @@ public class GUI extends Application {
     private String getDeterministicSpawnPoint(String playername) {
         // Brug spillerens nuværende position som input
         Player player = playerMap.get(playername);
-        int hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
-
+        int hashValue = 0;
+        if (player != null) {
+            hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
+        } else {
+            hashValue = player.getName().hashCode();
+        }
         // Brug hash-værdien til at vælge et spawn-point
         int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
         String coordinates = spawnPoints[spawnIndex];
@@ -356,7 +360,7 @@ public class GUI extends Application {
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(event -> {
             resetFloor(x, y);
-            me.isFrozen = false;
+            me.setFrozen(false);
         });
         pause.play();
     }
@@ -483,7 +487,7 @@ public class GUI extends Application {
             delta_X = 1;
         }
         if (!isAWall(x_coord + delta_X, y_coord + delta_Y) && !isAWall(x_coord + (2 * delta_X), y_coord + (2 * delta_Y))) {
-            me.isFrozen = true;
+            me.setFrozen(true);
             outToServer.writeBytes("PEWPEW " + myName + " " +
                     delta_X + " " + delta_Y + " " + me.getDirection() + "\n");
         }
@@ -498,7 +502,7 @@ public class GUI extends Application {
     }
 
     public void sendMoveCommand(String input) throws IOException {
-        if (!me.isFrozen) {
+        if (!me.isFrozen()) {
             outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
         }
     }

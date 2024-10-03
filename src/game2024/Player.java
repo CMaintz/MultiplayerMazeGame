@@ -6,7 +6,7 @@ public class Player {
 	int ypos;
 	int point;
 	String direction;
-	boolean isFrozen = false;
+	private boolean isFrozen = false;
 
 	public Player(String name, int xpos, int ypos, String direction) {
 		this.name = name;
