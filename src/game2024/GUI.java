@@ -53,6 +53,7 @@ public class GUI extends Application {
     public static Map<String, Player> playerMap = new HashMap<>();
     private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17", "11 10", "5 7"};
     private int connectedClients = -1;
+    private boolean isFrozen = false;
     private Label[][] fields;
     private TextArea scoreList;
 
@@ -226,15 +227,9 @@ public class GUI extends Application {
         return board[y].charAt(x) == 'w';
     }
 
-    private String getDeterministicSpawnPoint(String playername) {
-        // Brug spillerens nuværende position som input
-        Player player = playerMap.get(playername);
-        int hashValue = 0;
-        if (player != null) {
-            hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
-        } else {
-            hashValue = myName.hashCode();
-        }
+    private String getDeterministicSpawnPoint(String playerName) {
+        // Brug spillerens navn i stedet for ID
+        int hashValue = playerName.hashCode();
         // Brug hash-værdien til at vælge et spawn-point
         int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
         String coordinates = spawnPoints[spawnIndex];
@@ -360,7 +355,7 @@ public class GUI extends Application {
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(event -> {
             resetFloor(x, y);
-            me.setFrozen(false);
+            isFrozen = false;
         });
         pause.play();
     }
@@ -487,7 +482,7 @@ public class GUI extends Application {
             delta_X = 1;
         }
         if (!isAWall(x_coord + delta_X, y_coord + delta_Y) && !isAWall(x_coord + (2 * delta_X), y_coord + (2 * delta_Y))) {
-            me.setFrozen(true);
+            isFrozen = true;
             outToServer.writeBytes("PEWPEW " + myName + " " +
                     delta_X + " " + delta_Y + " " + me.getDirection() + "\n");
         }
@@ -502,7 +497,7 @@ public class GUI extends Application {
     }
 
     public void sendMoveCommand(String input) throws IOException {
-        if (!me.isFrozen()) {
+        if (!isFrozen) {
             outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
         }
     }

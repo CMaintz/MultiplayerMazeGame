@@ -6,7 +6,6 @@ public class Player {
 	int ypos;
 	int point;
 	String direction;
-	private boolean isFrozen = false;
 
 	public Player(String name, int xpos, int ypos, String direction) {
 		this.name = name;
@@ -14,14 +13,6 @@ public class Player {
 		this.ypos = ypos;
 		this.direction = direction;
 		this.point = 0;
-	}
-
-	public boolean isFrozen() {
-		return isFrozen;
-	}
-
-	public void setFrozen(boolean frozen) {
-		isFrozen = frozen;
 	}
 
 	public int getXpos() {
