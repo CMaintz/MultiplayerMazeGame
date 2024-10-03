@@ -53,7 +53,6 @@ public class GUI extends Application {
     public static Map<String, Player> playerMap = new HashMap<>();
     private static String[] spawnPoints = {"1 1", "17 1", "4 14", "16 17", "11 10", "5 7"};
     private int connectedClients = -1;
-    private boolean isFrozen = false;
     private Label[][] fields;
     private TextArea scoreList;
 
@@ -213,7 +212,6 @@ public class GUI extends Application {
                 x += delta_x;
                 y += delta_y;
 
-
                 player.setXpos(x);
                 player.setYpos(y);
                 player.setDirection(direction);
@@ -228,9 +226,11 @@ public class GUI extends Application {
         return board[y].charAt(x) == 'w';
     }
 
-    private String getDeterministicSpawnPoint(String playerName) {
-        // Brug spillerens navn i stedet for ID
-        int hashValue = getHashValue(playerName);
+    private String getDeterministicSpawnPoint(String playername) {
+        // Brug spillerens nuværende position som input
+        Player player = playerMap.get(playername);
+        int hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
+
         // Brug hash-værdien til at vælge et spawn-point
         int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
         String coordinates = spawnPoints[spawnIndex];
@@ -246,20 +246,6 @@ public class GUI extends Application {
         }
 
         return coordinates;
-    }
-
-    private int getHashValue(String input) {
-        try {
-            // Brug SHA-256 til at hash'e spillerens navn
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
-
-            // Konverter hash-byte-array til en integer-værdi
-            return new BigInteger(1, hashBytes).intValue();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return 0; // Default fallback
-        }
     }
 
     private void spawnPlayer(Player player) {
@@ -315,13 +301,18 @@ public class GUI extends Application {
 
         while (!isAWall(x_coord + delta_X, y_coord + delta_Y)) {
 
-            x_coord += delta_X;
-            y_coord += delta_Y;
-            renderLazer(x_coord, y_coord, direction, false, false);
             Player hitPlayer = getPlayerAt(x_coord, y_coord);
             if (hitPlayer != null) {
                 playerDied(murderer, getPlayerAt(x_coord, y_coord));
             }
+            x_coord += delta_X;
+            y_coord += delta_Y;
+            renderLazer(x_coord, y_coord, direction, false, false);
+
+        }
+        Player hitPlayer = getPlayerAt(x_coord, y_coord);
+        if (hitPlayer != null) {
+            playerDied(murderer, getPlayerAt(x_coord, y_coord));
         }
         renderLazer(x_coord, y_coord, direction, false, true);
     }
@@ -365,7 +356,7 @@ public class GUI extends Application {
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(event -> {
             resetFloor(x, y);
-            isFrozen = false;
+            me.isFrozen = false;
         });
         pause.play();
     }
@@ -492,7 +483,7 @@ public class GUI extends Application {
             delta_X = 1;
         }
         if (!isAWall(x_coord + delta_X, y_coord + delta_Y) && !isAWall(x_coord + (2 * delta_X), y_coord + (2 * delta_Y))) {
-            isFrozen = true;
+            me.isFrozen = true;
             outToServer.writeBytes("PEWPEW " + myName + " " +
                     delta_X + " " + delta_Y + " " + me.getDirection() + "\n");
         }
@@ -507,7 +498,7 @@ public class GUI extends Application {
     }
 
     public void sendMoveCommand(String input) throws IOException {
-        if (!isFrozen) {
+        if (!me.isFrozen) {
             outToServer.writeBytes("MOVE " + me.getName() + " " + input + "\n");
         }
     }
