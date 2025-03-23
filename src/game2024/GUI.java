@@ -227,9 +227,16 @@ public class GUI extends Application {
         return board[y].charAt(x) == 'w';
     }
 
-    private String getDeterministicSpawnPoint(String playerName) {
-        // Brug spillerens navn i stedet for ID
-        int hashValue = playerName.hashCode();
+    private String getDeterministicSpawnPoint(String playername) {
+        // Brug spillerens nuværende position som input
+        //        int hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
+        int hashValue = 0;
+        if (playerMap.containsKey(playername)) {
+            Player player = playerMap.get(playername);
+            hashValue = (player.getXpos() + ":" + player.getYpos()).hashCode();
+        } else {
+            hashValue = myName.hashCode();
+        }
         // Brug hash-værdien til at vælge et spawn-point
         int spawnIndex = Math.abs(hashValue) % spawnPoints.length;
         String coordinates = spawnPoints[spawnIndex];
@@ -350,7 +357,6 @@ public class GUI extends Application {
                 fields[x][y].setGraphic(new ImageView(lazer_vertical));
             }
         }
-
 
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(event -> {
